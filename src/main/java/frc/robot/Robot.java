@@ -147,27 +147,23 @@ public class Robot extends TimedRobot {
   //function that is called periodically during autonomous
   @Override
   public void autonomousPeriodic() {
-    for(int i = -1; i < 4; i += 2) {
+    for(int i = -1; i < 7; i += 2) {
       if (Timer.getFPGATimestamp() - autoStart > i) {
         driveLeftA.set(0.1);
         driveLeftB.set(0.1);
         driveRightA.set(0.1);
         driveRightB.set(0.1);
       }
-      else if (Timer.getFPGATimestamp() - autoStart > i + 1) {
+      else (Timer.getFPGATimestamp() - autoStart > i + 1) {
         driveLeftA.set(-0.4);
         driveLeftB.set(-0.4);
         driveRightA.set(0.4);
         driveRightB.set(0.4);
       } 
-      else {
-        driveLeftA.set(0);
-        driveLeftB.set(0);
-        driveRightA.set(0);
-        driveRightB.set(0);
-      }
     }
   }
+  
+  
     
     /** else if (Timer.getFPGATimestamp() - autoStart > 3){
       driveLeftA.set(0.1);
