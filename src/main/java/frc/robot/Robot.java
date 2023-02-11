@@ -154,14 +154,20 @@ public class Robot extends TimedRobot {
         driveRightA.set(0.1);
         driveRightB.set(0.1);
       }
-      else (Timer.getFPGATimestamp() - autoStart > i + 1) {
+      else if(Timer.getFPGATimestamp() - autoStart > i + 1) {
         driveLeftA.set(-0.4);
         driveLeftB.set(-0.4);
         driveRightA.set(0.4);
         driveRightB.set(0.4);
       } 
+
     }
+      driveLeftA.set(0);
+      driveLeftB.set(0);
+      driveRightA.set(0);
+      driveRightB.set(0);
   }
+
   
   
     
