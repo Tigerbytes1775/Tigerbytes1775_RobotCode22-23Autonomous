@@ -32,11 +32,12 @@ import java.util.concurrent.TimeUnit;*/
 //import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
 //import com.ctre.phoenix.motorcontrol.can.VictorSPX;
 // import com.ctre.phoenix.motorcontrol.can.*;
-//import com.revrobotics.RelativeEncoder;
+import com.revrobotics.RelativeEncoder;
 // import com.revrobotics.SparkMaxPIDController; 
 // import com.ctre.phoenix.signals.*;
 //import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 // import edu.wpi.first.wpilibj.motorcontrol.Spark;
+import com.revrobotics.SparkMaxRelativeEncoder;
 
 public class Robot extends TimedRobot {
   //Creating varibales for the motor controllers
@@ -48,6 +49,8 @@ public class Robot extends TimedRobot {
   // variables for the arm controls
   CANSparkMax armYAxis = new CANSparkMax(11, MotorType.kBrushless);
   PWMVictorSPX armXAxis = new PWMVictorSPX(5);
+
+  private RelativeEncoder Encoder;
 
   //variables for the pneumatics system
   Compressor compressor = new Compressor(1, PneumaticsModuleType.CTREPCM);
@@ -98,6 +101,14 @@ public class Robot extends TimedRobot {
     ((CANSparkMax) armYAxis).burnFlash();
     armXAxis.setInverted(false);
 
+    Encoder = armYAxis.getEncoder(SparkMaxRelativeEncoder.Type.kQuadrature, 4096);
+
+    armYAxis.enableSoftLimit(CANSparkMax.SoftLimitDirection.kForward, true);
+    armYAxis.enableSoftLimit(CANSparkMax.SoftLimitDirection.kReverse, true);
+
+    armYAxis.setSoftLimit(CANSparkMax.SoftLimitDirection.kForward, 5);
+    armYAxis.setSoftLimit(CANSparkMax.SoftLimitDirection.kReverse, 0);
+
     //initial conditions for the intake
     compressor.disable();
 
@@ -145,6 +156,9 @@ public class Robot extends TimedRobot {
   }
 
   //function that is called periodically during autonomous
+
+//private CANSparkMax.getX()
+
   @Override
   public void autonomousPeriodic() {
     for(int i = -1; i < 7; i += 2) {
@@ -160,15 +174,22 @@ public class Robot extends TimedRobot {
         driveRightA.set(0.4);
         driveRightB.set(0.4);
       } 
-
+      
     }
       driveLeftA.set(0);
       driveLeftB.set(0);
       driveRightA.set(0);
       driveRightB.set(0);
+
+      if (Encoder.getPosition() < 2) {
+        
+
+      } //else if() {
+
+      //}
   }
 
-  
+
   
     
     /** else if (Timer.getFPGATimestamp() - autoStart > 3){
