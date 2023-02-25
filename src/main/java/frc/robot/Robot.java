@@ -11,6 +11,12 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import edu.wpi.first.wpilibj.motorcontrol.PWMVictorSPX;
+import com.ctre.phoenix.motorcontrol.FeedbackDevice;
+import com.ctre.phoenix.motorcontrol.InvertType;
+import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+
+import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 
 //pneumatics
 import edu.wpi.first.wpilibj.Compressor;
@@ -41,14 +47,18 @@ import com.revrobotics.SparkMaxRelativeEncoder;
 
 public class Robot extends TimedRobot {
   //Creating varibales for the motor controllers
-  PWMVictorSPX driveLeftA = new PWMVictorSPX(1);
+  WPI_TalonSRX driveLeftA = new WPI_TalonSRX(1);
   PWMVictorSPX driveLeftB = new PWMVictorSPX(2);
-  PWMVictorSPX driveRightA = new PWMVictorSPX(3);
+  MotorControllerGroup leftMotors = new MotorControllerGroup(driveLeftA, driveLeftB);
+
+  WPI_TalonSRX driveRightA = new WPI_TalonSRX(3);
   PWMVictorSPX driveRightB = new PWMVictorSPX(4);
+  MotorControllerGroup rightMotors = new MotorControllerGroup(driveRightA, driveRightB);
+
 
   // variables for the arm controls
   CANSparkMax armYAxis = new CANSparkMax(11, MotorType.kBrushless);
-  PWMVictorSPX armXAxis = new PWMVictorSPX(5);
+  WPI_TalonSRX armXAxis = new WPI_TalonSRX(5);
 
   private RelativeEncoder Encoder;
 
@@ -69,38 +79,50 @@ public class Robot extends TimedRobot {
   //time to move the arm
   static final double ArmExtendTime = 2.0;
 
+  // arm power
+  double armPower = 0;
+  double armXPower = 0;
+  
+  double armXPowerIn = 0;
+  double armXPowerOut = 0;
+
   //Varibles needed for the code
   boolean armUp = true; //Arm initialized to up because that's how it would start a match
   boolean burstMode = false;
   double lastBurstTime = 0; 
 
   double autoStart = 0;
-  boolean goForAuto = true;
+  boolean goForAuto = true; 
 
+  // numer of ticks to number of revolutions conversion factor
+  double kArmTick2Deg = 360 / 512 * 26 / 42 * 18 / 60 * 18 / 84;
 
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
    */
+
+    
+  private final double ticksToFeet = 1.0 / 4096 * 6 * Math.PI / 12;
+
   
-   @Override
 
   //function for setting the initial conditions of all the hardware
   public void robotInit() {
 
     //initial conditions for the drive motors
-    driveLeftA.setInverted(true);
-    driveLeftB.setInverted(true);
-    driveRightA.setInverted(false);
-    driveRightB.setInverted(false);
+    leftMotors.setInverted(true);
+    rightMotors.setInverted(false);
     
-    //initla conditions for the arm
+    //initla conditions for the arm 
     armYAxis.setInverted(true);
     armYAxis.setIdleMode(IdleMode.kBrake);
     armYAxis.setSmartCurrentLimit(ArmCurrentLimitA);
     ((CANSparkMax) armYAxis).burnFlash();
     armXAxis.setInverted(false);
+    
 
+    // encoder setup for the arm in the y axis
     Encoder = armYAxis.getEncoder(SparkMaxRelativeEncoder.Type.kQuadrature, 4096);
 
     armYAxis.enableSoftLimit(CANSparkMax.SoftLimitDirection.kForward, true);
@@ -108,6 +130,21 @@ public class Robot extends TimedRobot {
 
     armYAxis.setSoftLimit(CANSparkMax.SoftLimitDirection.kForward, 5);
     armYAxis.setSoftLimit(CANSparkMax.SoftLimitDirection.kReverse, 0);
+
+
+    // encoder setup for the arm in the x axis
+    armXAxis.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 10);
+    armXAxis.setSensorPhase(false);
+    armXAxis.setSelectedSensorPosition(0, 0, 10);
+
+    armXAxis.configForwardSoftLimitThreshold((int) (0 / kArmTick2Deg), 10);
+    armXAxis.configReverseSoftLimitThreshold((int) (0 / kArmTick2Deg), 10);
+
+    armXAxis.configForwardSoftLimitEnable(true, 10);
+    armXAxis.configReverseSoftLimitEnable(true, 10);
+
+
+    
 
     //initial conditions for the intake
     compressor.disable();
@@ -181,13 +218,42 @@ public class Robot extends TimedRobot {
       driveRightA.set(0);
       driveRightB.set(0);
 
+      // armcontrols in the vertical direction
       if (Encoder.getPosition() < 2) {
-        
+        armPower = 0.2;
+        //armYAxis.set(0.2);
 
-      } //else if() {
+      } else {
+        armPower = 0;
+        //armYAxis.set(0);
+        armYAxis.setIdleMode(IdleMode.kBrake);
+      }
+      armYAxis.set(armPower);
 
-      //}
-  }
+      // arm controls for the horizontal direction
+      double extensionDistance = armXAxis.getSelectedSensorPosition() / kArmTick2Deg;
+            
+      if (extensionDistance < 5){
+        armPower = 0.2;
+      }else{
+        armPower = 0;
+        armXAxis.stopMotor();
+      }
+      armXAxis.set(armPower);
+    }
+     
+      //Encoder =  armXAxis.getEncoder(WPI_TalorSRXRelativeEncoder.Type.kQuadrature, 4096:true);
+    
+     /*if(Encoder.getdistance() < 2) {
+      armXPower = 0.2;
+     } else {
+      armXPower = 0;
+      armXAxis.setIdleMode(IdleMode.kBrake);
+     }
+     armXAxis.set(armXPower);
+     }*/
+  
+     
 
 
   
