@@ -12,12 +12,13 @@ import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import edu.wpi.first.wpilibj.motorcontrol.PWMVictorSPX;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
-import com.ctre.phoenix.motorcontrol.InvertType;
+//import com.ctre.phoenix.motorcontrol.InvertType;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 
-import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+//import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
-
+import java.lang.Math;
 //pneumatics
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
@@ -55,12 +56,13 @@ public class Robot extends TimedRobot {
   PWMVictorSPX driveRightB = new PWMVictorSPX(4);
   MotorControllerGroup rightMotors = new MotorControllerGroup(driveRightA, driveRightB);
 
+  DifferentialDrive drive = new DifferentialDrive(leftMotors, rightMotors);
 
   // variables for the arm controls
   CANSparkMax armYAxis = new CANSparkMax(11, MotorType.kBrushless);
   WPI_TalonSRX armXAxis = new WPI_TalonSRX(5);
 
-  private RelativeEncoder Encoder;
+  RelativeEncoder Encoder;
 
   //variables for the pneumatics system
   Compressor compressor = new Compressor(1, PneumaticsModuleType.CTREPCM);
@@ -95,7 +97,7 @@ public class Robot extends TimedRobot {
   boolean goForAuto = true; 
 
   // numer of ticks to number of revolutions conversion factor
-  double kArmTick2Deg = 360 / 512 * 26 / 42 * 18 / 60 * 18 / 84;
+  double kArmTick2Deg = 360 / 512 * 1/7;
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -104,7 +106,15 @@ public class Robot extends TimedRobot {
 
     
   private final double ticksToFeet = 1.0 / 4096 * 6 * Math.PI / 12;
+ 
+  public void robotPeriodic(){
+    SmartDashboard.putNumber("Left Drive Encoder Value", driveLeftA.getSelectedSensorPosition() * ticksToFeet);
+    SmartDashboard.putNumber("Right Drive Encoder Value", driveRightA.getSelectedSensorPosition() * ticksToFeet);
+  }
 
+
+
+  
   
 
   //function for setting the initial conditions of all the hardware
@@ -121,6 +131,7 @@ public class Robot extends TimedRobot {
     ((CANSparkMax) armYAxis).burnFlash();
     armXAxis.setInverted(false);
     
+
 
     // encoder setup for the arm in the y axis
     Encoder = armYAxis.getEncoder(SparkMaxRelativeEncoder.Type.kQuadrature, 4096);
@@ -143,7 +154,15 @@ public class Robot extends TimedRobot {
     armXAxis.configForwardSoftLimitEnable(true, 10);
     armXAxis.configReverseSoftLimitEnable(true, 10);
 
+    //encoder setup for the drive motors
+    driveLeftA.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 10);
+    driveRightA.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 10);
 
+    driveLeftA.setSensorPhase(false);
+    driveRightA.setSensorPhase(true);
+
+    driveLeftA.setSelectedSensorPosition(0, 0, 10);
+    driveRightA.setSelectedSensorPosition(0, 0, 10);
     
 
     //initial conditions for the intake
@@ -190,6 +209,8 @@ public class Robot extends TimedRobot {
     autoStart = Timer.getFPGATimestamp();
     //check dashboard icon to ensure good to do auto
     goForAuto = SmartDashboard.getBoolean("Go For Auto", false);
+    //encoder.reset();
+    driveLeftA.setSelectedSensorPosition(0,0,10);
   }
 
   //function that is called periodically during autonomous
@@ -198,7 +219,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousPeriodic() {
-    for(int i = -1; i < 7; i += 2) {
+    /** for(int i = -1; i < 7; i += 2) {
       if (Timer.getFPGATimestamp() - autoStart > i) {
         driveLeftA.set(0.1);
         driveLeftB.set(0.1);
@@ -241,7 +262,14 @@ public class Robot extends TimedRobot {
       }
       armXAxis.set(armPower);
     }
-     
+*/
+    double driveDistance = driveLeftA.getSelectedSensorPosition() * ticksToFeet;
+    if(driveDistance < 2) {
+      leftMotors.set(10);
+    } else {
+      leftMotors.set(0);
+    }
+}     
       //Encoder =  armXAxis.getEncoder(WPI_TalorSRXRelativeEncoder.Type.kQuadrature, 4096:true);
     
      /*if(Encoder.getdistance() < 2) {
@@ -292,13 +320,7 @@ public class Robot extends TimedRobot {
     double forward = -driverController.getRawAxis(1);
     double turn = -driverController.getRawAxis(4);
     
-    double driveLeftPower = forward - turn;
-    double driveRightPower = forward + turn;
-
-    driveLeftA.set(driveLeftPower);
-    driveLeftB.set(driveLeftPower);
-    driveRightA.set(driveRightPower);
-    driveRightB.set(driveRightPower);
+    drive.arcadeDrive(forward, turn);
     
     //Code for the arm
     double armPower;
