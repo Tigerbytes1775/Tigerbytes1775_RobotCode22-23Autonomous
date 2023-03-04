@@ -5,6 +5,8 @@ package frc.robot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
+import java.lang.Math;
+
 
 // motor controllers
 import com.revrobotics.CANSparkMax;
@@ -15,10 +17,13 @@ import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 //import com.ctre.phoenix.motorcontrol.InvertType;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-
 //import edu.wpi.first.wpilibj.motorcontrol.MotorController;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
-import java.lang.Math;
+
+//Encoders
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.SparkMaxRelativeEncoder.Type;
+
 //pneumatics
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
@@ -28,23 +33,22 @@ import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.XboxController;
 
-//import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-/*import java.sql.Time;
+//Unused Imports
+/*import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.BreakIterator;
-import java.util.concurrent.TimeUnit;*/
-//import com.ctre.phoenix.time.StopWatch;
-// import com.ctre.phoenix.motorcontrol.ControlMode;
-// import com.ctre.phoenix.motorcontrol.*;
-//import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
-//import com.ctre.phoenix.motorcontrol.can.VictorSPX;
-// import com.ctre.phoenix.motorcontrol.can.*;
-import com.revrobotics.RelativeEncoder;
-// import com.revrobotics.SparkMaxPIDController; 
-// import com.ctre.phoenix.signals.*;
-//import edu.wpi.first.wpilibj.motorcontrol.MotorController;
-// import edu.wpi.first.wpilibj.motorcontrol.Spark;
-import com.revrobotics.SparkMaxRelativeEncoder;
+import java.util.concurrent.TimeUnit;
+import com.ctre.phoenix.time.StopWatch;
+import com.ctre.phoenix.motorcontrol.ControlMode;
+/import com.ctre.phoenix.motorcontrol.*;
+import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
+import com.ctre.phoenix.motorcontrol.can.VictorSPX;
+import com.ctre.phoenix.motorcontrol.can.*;
+import com.revrobotics.SparkMaxPIDController; 
+import com.ctre.phoenix.signals.*;
+import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+import edu.wpi.first.wpilibj.motorcontrol.Spark;*/
 
 public class Robot extends TimedRobot {
   //Creating varibales for the motor controllers
@@ -99,10 +103,21 @@ public class Robot extends TimedRobot {
   // numer of ticks to number of revolutions conversion factor
   double kArmTick2Deg = 360 / 512 * 1/7;
 
-  /**
-   * This function is run when the robot is first started up and should be used for any
-   * initialization code.
-   */
+
+  //PID variables
+  final double kp = 0;
+  double error = 0;
+
+  final double kI = 0;
+  double errorSum = 0;
+  double iLimit = 1;
+  double lastTimeStamp = 0;
+
+  final double kD = 0;
+  double lastError = 0;
+  double errorRate = 0;
+
+  double dT = 0;
 
     
   private final double ticksToFeet = 1.0 / 4096 * 6 * Math.PI / 12;
@@ -134,7 +149,7 @@ public class Robot extends TimedRobot {
 
 
     // encoder setup for the arm in the y axis
-    Encoder = armYAxis.getEncoder(SparkMaxRelativeEncoder.Type.kQuadrature, 4096);
+    Encoder = armYAxis.getEncoder(Type.kQuadrature, 4096);
 
     armYAxis.enableSoftLimit(CANSparkMax.SoftLimitDirection.kForward, true);
     armYAxis.enableSoftLimit(CANSparkMax.SoftLimitDirection.kReverse, true);
@@ -211,12 +226,11 @@ public class Robot extends TimedRobot {
     goForAuto = SmartDashboard.getBoolean("Go For Auto", false);
     //encoder.reset();
     driveLeftA.setSelectedSensorPosition(0,0,10);
+
+    lastTimeStamp = Timer.getFPGATimestamp();
   }
 
   //function that is called periodically during autonomous
-
-//private CANSparkMax.getX()
-
   @Override
   public void autonomousPeriodic() {
     /** for(int i = -1; i < 7; i += 2) {
@@ -264,12 +278,32 @@ public class Robot extends TimedRobot {
     }
 */
     double driveDistance = driveLeftA.getSelectedSensorPosition() * ticksToFeet;
+    double distanceToDrive = -10;
     if(driveDistance < 2) {
-      leftMotors.set(10);
+      error = distanceToDrive - driveDistance;
+
+      dT = Timer.getFPGATimestamp() - lastTimeStamp;
+
+      if( Math.abs(error) < iLimit) {
+        errorSum += error * dT;
+      }
+ 
+      errorRate = (error - lastError) /dT;
+
+      double driveSpeed = error*kp + errorSum*kI + errorRate*kD;
+
+      leftMotors.set(driveSpeed);
+      rightMotors.set(driveSpeed);
+
+
+      lastTimeStamp = Timer.getFPGATimestamp();
+      lastError = error;
+
     } else {
       leftMotors.set(0);
+      rightMotors.set(0);
     }
-}     
+     
       //Encoder =  armXAxis.getEncoder(WPI_TalorSRXRelativeEncoder.Type.kQuadrature, 4096:true);
     
      /*if(Encoder.getdistance() < 2) {
@@ -308,6 +342,7 @@ public class Robot extends TimedRobot {
       driveLeftA.set()
     } */
     
+  }
 
   /** This function is called once when teleop is enabled. */
   @Override
@@ -388,8 +423,7 @@ public class Robot extends TimedRobot {
   //function for disabling everything at the end of the game
   @Override
   public void disabledInit() {
-    //On disable turn off everything
-    //done to solve issue with motors "remembering" previous setpoints after reenable
+    //On disable turn off everything done to solve issue with motors "remembering" previous setpoints after reenable
     driveLeftA.set(0);
     driveLeftB.set(0);
     driveRightA.set(0);
